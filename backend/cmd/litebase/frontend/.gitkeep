@@ -1,0 +1,6 @@
+This directory receives the compiled dashboard from "npm run build"
+(see the Makefile and frontend/vite.config.ts).
+
+This placeholder is committed on purpose: the go:embed directive in embed.go
+fails to compile against an empty directory, so without it a fresh clone could
+not build the server until the frontend had been built at least once.

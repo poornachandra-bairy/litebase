@@ -1,0 +1,27 @@
+# Build artefacts
+/litebase
+/dist/
+backend/cmd/litebase/frontend/assets/
+backend/cmd/litebase/frontend/index.html
+backend/cmd/litebase/frontend/*.svg
+backend/cmd/litebase/frontend/*.ico
+
+# Runtime data: databases, backups and secrets must never be committed
+/data/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Configuration with secrets
+.env
+.env.local
+
+# Dependencies
+node_modules/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

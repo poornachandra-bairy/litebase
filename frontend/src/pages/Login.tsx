@@ -3,9 +3,11 @@ import type { FormEvent } from "react";
 import { useAuth } from "../lib/auth";
 import { ApiError } from "../lib/api";
 import { Field } from "../components/common";
+import { themeIcon, themeLabel, useTheme } from "../lib/theme";
 
 export function LoginPage() {
   const { login } = useAuth();
+  const { theme, cycle } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,6 +30,18 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
+      {/* Reachable before signing in, so the palette can be set from the very
+          first screen rather than only from inside the dashboard. */}
+      <button
+        className="theme-toggle"
+        style={{ position: "fixed", top: 16, right: 18 }}
+        title={themeLabel(theme)}
+        aria-label={themeLabel(theme)}
+        onClick={cycle}
+      >
+        {themeIcon(theme)}
+      </button>
+
       <div className="login-card">
         <div className="brand">
           <div className="logo">🗃️</div>

@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { useToast } from "./Toast";
 import { Modal } from "./Modal";
 import { Field } from "./common";
+import { themeIcon, themeLabel, useTheme } from "../lib/theme";
 import type { DatabaseMeta } from "../lib/types";
 
 /** The dashboard shell: sidebar navigation plus the routed page. */
@@ -15,6 +16,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [databases, setDatabases] = useState<DatabaseMeta[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const { theme, cycle } = useTheme();
 
   // The sidebar lists databases, so it reloads whenever navigation might have
   // created or removed one.
@@ -81,6 +83,14 @@ export function Layout({ children }: { children: ReactNode }) {
             {user?.name || user?.email}
             <small>{user?.role}</small>
           </div>
+          <button
+            className="theme-toggle"
+            title={themeLabel(theme)}
+            aria-label={themeLabel(theme)}
+            onClick={cycle}
+          >
+            {themeIcon(theme)}
+          </button>
           <button
             className="btn ghost sm"
             title="Change password"

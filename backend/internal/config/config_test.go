@@ -198,3 +198,25 @@ func TestParseSize(t *testing.T) {
 		t.Error("invalid size accepted")
 	}
 }
+
+func TestBaseURLNormalisation(t *testing.T) {
+	cases := map[string]string{
+		"https://db.example.com":  "https://db.example.com",
+		"https://db.example.com/": "https://db.example.com",
+		// A platform may hand over a bare hostname; it must still yield a
+		// usable absolute URL in the generated API documentation.
+		"db.example.com":        "https://db.example.com",
+		"http://localhost:8090": "http://localhost:8090",
+		"":                      "",
+	}
+	for in, want := range cases {
+		t.Setenv("LITEBASE_BASE_URL", in)
+		c, err := Load("")
+		if err != nil {
+			t.Fatalf("Load(%q): %v", in, err)
+		}
+		if c.BaseURL != want {
+			t.Errorf("BaseURL(%q) = %q, want %q", in, c.BaseURL, want)
+		}
+	}
+}

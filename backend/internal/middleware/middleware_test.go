@@ -141,6 +141,43 @@ func TestRateLimitMiddleware(t *testing.T) {
 	}
 }
 
+func TestClientIPTrustsPrivatePeersAutomatically(t *testing.T) {
+	// Behind Docker, Coolify, Traefik or nginx the peer is always a private
+	// address, so the real client must be recovered without configuration.
+	privatePeers := []string{
+		"172.17.0.1:5000",  // docker bridge
+		"10.0.0.5:5000",    // RFC 1918
+		"192.168.1.10:443", // RFC 1918
+		"127.0.0.1:8080",   // loopback
+		"100.64.0.3:80",    // carrier-grade NAT, used by some overlay networks
+	}
+	for _, peer := range privatePeers {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.RemoteAddr = peer
+		req.Header.Set("X-Forwarded-For", "203.0.113.9")
+
+		if got := ClientIP(req, false); got != "203.0.113.9" {
+			t.Errorf("peer %s: ClientIP = %q, want the forwarded client address", peer, got)
+		}
+	}
+}
+
+func TestClientIPIgnoresForwardedHeadersFromPublicPeer(t *testing.T) {
+	// A request straight off the internet must never be believed, or anyone
+	// could spoof an address and evade per-client rate limiting.
+	req := httptest.NewRequest("GET", "/", nil)
+	req.RemoteAddr = "203.0.113.50:1234"
+	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+
+	if got := ClientIP(req, false); got != "203.0.113.50" {
+		t.Errorf("ClientIP = %q, want the real public peer address", got)
+	}
+	// An explicit trust setting still overrides, for an unusual topology.
+	if got := ClientIP(req, true); got != "1.2.3.4" {
+		t.Errorf("ClientIP(trusted) = %q, want the forwarded address", got)
+	}
+}
+
 func TestClientIPIgnoresForwardedHeadersWhenProxyUntrusted(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	req.RemoteAddr = "192.0.2.10:1234"

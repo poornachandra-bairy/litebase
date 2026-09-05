@@ -270,66 +270,56 @@ make test
 
 ### Coolify (Hostinger VPS or any Docker host)
 
-Litebase is one service, so there is nothing to split into a separate frontend
-and backend deployment: the Go binary serves the dashboard and the API from the
-same origin and the same port.
+Litebase needs no configuration to deploy. It generates its own administrator
+password and encryption key on first start, detects that it is behind a proxy,
+and serves the dashboard and the API from one port.
 
-1. **Create the resource.** In Coolify, add a new resource, choose your Git
-   repository, and set **Build Pack** to `Dockerfile`. The `Dockerfile` at the
-   repository root is picked up automatically.
-2. **Port.** Coolify reads `EXPOSE 8090` from the Dockerfile. If it asks, set
-   *Ports Exposes* to `8090`.
-3. **Add persistent storage — do not skip this.** Under *Storages*, add a
-   volume mounted at `/data`. Everything lives there: your databases, the
-   metadata database and local backups. Without it, **every redeploy starts
-   from an empty instance.**
-4. **Set environment variables** (see the table below).
-5. **Domain.** Coolify assigns one automatically and issues a Let's Encrypt
-   certificate for it, so the dashboard and the API are on HTTPS with no
-   further work. Point your own domain at the server and enter it in
-   *Domains* to use that instead.
-6. **Deploy.**
+1. **Push this repository** to GitHub or GitLab.
+2. In Coolify: **+ New → Resource → Public/Private Repository**, select the repo.
+3. Set **Build Pack** to **`Docker Compose`**, with the compose file at
+   `docker-compose.yml`. This matters: the Compose build pack creates the data
+   volume for you, whereas the plain Dockerfile pack does not.
+4. Under **Domains**, click **Generate Domain**.
+5. **Deploy.**
+6. Open **Logs** and copy the generated password from the boxed banner.
+7. Visit the domain, sign in, and change the password in the sidebar.
 
-The API lives under the same hostname as the dashboard, so it inherits the same
-certificate:
+That is the whole procedure. There is nothing to set under *Environment
+Variables* and nothing to add under *Storages*.
 
-```
-https://your-app.example.com/            dashboard
-https://your-app.example.com/api/health  health check
-https://your-app.example.com/api/...     your generated endpoints
-```
+#### Why no configuration is needed
 
-#### Environment variables to set in Coolify
+| Concern | How it is handled |
+|---|---|
+| HTTPS | Coolify's proxy terminates TLS and issues the certificate. Litebase marks its cookies `Secure` automatically once requests arrive over HTTPS |
+| URL | Coolify assigns the domain and routes it to port 8090, which the compose file declares |
+| Admin account | A strong password is generated on first start and printed once to the deploy log |
+| Encryption key | Generated on first start and stored on the data volume, so backup encryption works immediately and keeps working across redeploys |
+| Persistence | The compose file declares the `/data` volume, which Coolify creates |
+| Client addresses | Litebase trusts forwarding headers when the connecting peer is on a private network, which is always true behind a proxy, so rate limiting sees real client addresses |
 
-| Variable | Value | Why |
-|---|---|---|
-| `LITEBASE_ADMIN_EMAIL` | your email | The first administrator |
-| `LITEBASE_ADMIN_PASSWORD` | a long password | Otherwise one is generated and printed to the deploy log once |
-| `LITEBASE_BACKUP_ENCRYPTION_KEY` | `openssl rand -base64 48` | Encrypts backups and stored cloud credentials. Keep a copy: losing it makes encrypted backups unrecoverable |
-| `LITEBASE_TRUST_PROXY` | `true` | Coolify's proxy sits in front, so client addresses arrive in `X-Forwarded-For`. Without this, rate limiting sees every request as coming from the proxy |
-| `LITEBASE_BASE_URL` | `https://your-domain` | Used in the generated OpenAPI document |
+#### Optional overrides
 
-`LITEBASE_DATA_DIR` and `LITEBASE_ADDR` are already set correctly inside the
-image; leave them alone.
+Set any of these under *Environment Variables* only if you want them:
 
-You do **not** need to set `LITEBASE_SECURE_COOKIES`. Litebase marks its cookies
-`Secure` automatically whenever a request arrives over HTTPS, so a
-proxy-terminated deployment is protected without configuration, while a plain
-HTTP install on localhost still works.
+| Variable | Effect |
+|---|---|
+| `LITEBASE_ADMIN_EMAIL` / `LITEBASE_ADMIN_PASSWORD` | Choose the first account instead of having one generated. Only read while no user exists |
+| `LITEBASE_BACKUP_ENCRYPTION_KEY` | Manage the key yourself rather than letting the instance generate one |
+| `LITEBASE_MAX_UPLOAD_BYTES` | Raise the import limit. Coolify's proxy has its own body limit, so raise that too |
 
-#### Notes
+#### Things worth knowing
 
-- **Redeploys are safe.** The metadata database migrates itself forward on
-  startup, and your data lives on the `/data` volume rather than in the image.
-- **The volume's ownership is handled for you.** The container starts as root
-  only long enough to take ownership of `/data`, then drops to an unprivileged
-  user before starting the server. This is what makes a host-directory mount
-  work rather than failing with a permission error.
-- **Health checks.** Coolify can use `/api/health`; it is unauthenticated and
-  returns only status, version and uptime.
-- **Raising upload limits.** Importing a large SQLite file also has to pass
-  through Coolify's proxy. If a big import is rejected, raise the proxy's body
-  limit as well as `LITEBASE_MAX_UPLOAD_BYTES`.
+- **Keep the volume.** Deleting it destroys your databases *and* the generated
+  encryption key, which makes existing encrypted backups unrecoverable. Take a
+  copy of `/data/.instance_key` if you rely on encrypted backups.
+- **Redeploys are safe.** Data lives on the volume, not in the image, and the
+  metadata database migrates itself forward on startup.
+- **Lost the password?** Open a terminal on the container and run
+  `litebase --reset-password admin@litebase.local`.
+- **Auto-generated domains.** Coolify's generated domain is an `sslip.io`
+  address. Let's Encrypt rate-limits that domain, so if certificate issuance
+  fails, point a domain of your own at the server and use it instead.
 
 ### Reverse proxy (without Coolify)
 

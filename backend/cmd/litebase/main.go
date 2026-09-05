@@ -52,7 +52,19 @@ func run() error {
 		return err
 	}
 
+	// Generate and persist an encryption key when none was supplied, so backup
+	// encryption works on a default install instead of being silently off.
+	generatedKey, err := cfg.EnsureSecret()
+	if err != nil {
+		return err
+	}
+
 	log := logging.New(cfg.LogLevel, cfg.LogFormat)
+	if generatedKey {
+		log.Info("generated an instance encryption key",
+			"path", cfg.SecretPath(),
+			"note", "keep this file; without it existing encrypted backups cannot be restored")
+	}
 	server.Version = version
 
 	// A root context cancelled on SIGINT/SIGTERM drives graceful shutdown.

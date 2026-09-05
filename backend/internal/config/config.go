@@ -143,6 +143,15 @@ func (c *Config) normalize() error {
 	if c.Addr == "" {
 		return errors.New("addr must not be empty")
 	}
+
+	// A platform such as Coolify may supply the assigned domain with or
+	// without a scheme. Normalise it so the generated API documentation always
+	// carries a usable absolute URL.
+	if c.BaseURL = strings.TrimSpace(strings.TrimSuffix(c.BaseURL, "/")); c.BaseURL != "" {
+		if !strings.Contains(c.BaseURL, "://") {
+			c.BaseURL = "https://" + c.BaseURL
+		}
+	}
 	if c.MaxQueryRows <= 0 {
 		return errors.New("max_query_rows must be positive")
 	}

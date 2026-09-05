@@ -237,21 +237,23 @@ func (a *app) bootstrap(ctx context.Context) error {
 
 	// The generated password is printed once, to stdout rather than the
 	// structured log, because it must be readable and copyable and must not be
-	// shipped to a log aggregator.
+	// shipped to a log aggregator. The banner is padded so it stands out in a
+	// deploy log, which is where a hosted install will read it from.
 	fmt.Printf(`
-────────────────────────────────────────────────────────────
- Litebase created its first administrator account.
 
-   Email:    %s
-   Password: %s
-
- This password is shown once and is not stored in plain text.
- Save it now, then sign in and change it.
-
- To choose your own credentials instead, delete the data
- directory and set LITEBASE_ADMIN_EMAIL and
- LITEBASE_ADMIN_PASSWORD before starting.
-────────────────────────────────────────────────────────────
+╔══════════════════════════════════════════════════════════════╗
+║  LITEBASE - FIRST ADMINISTRATOR ACCOUNT                      ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║   Email:     %-48s║
+║   Password:  %-48s║
+║                                                              ║
+║   Copy this password now. It is stored only as a hash and    ║
+║   will not be shown again. Sign in and change it.            ║
+║                                                              ║
+║   Lost it? Run:  litebase --reset-password <email>           ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
 
 `, email, generated)
 	return nil

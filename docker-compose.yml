@@ -5,10 +5,14 @@
 #   docker compose up -d      on your own machine or any Docker host
 #   Coolify                   choose the "Docker Compose" build pack
 #
-# Nothing has to be configured. The server generates its own admin password and
-# encryption key on first start, and creates its data directory itself. On
-# Coolify, the volume below is created automatically and the SERVICE_FQDN
-# variable makes Coolify assign a domain and issue a certificate for it.
+# Nothing needs configuring. The server generates its own administrator
+# password and encryption key on first start, and detects that it is running
+# behind a proxy. The volume below is what keeps your data across redeploys.
+#
+# Note on style: "environment" is written as a mapping rather than a list.
+# Coolify rewrites this section to merge in variables defined in its UI, and a
+# list does not survive that rewrite - it comes back with integer keys and the
+# deploy fails with "non-string key in services.litebase.environment: 0".
 
 services:
   litebase:
@@ -16,36 +20,20 @@ services:
       context: .
       args:
         VERSION: ${LITEBASE_VERSION:-dev}
-    image: litebase:${LITEBASE_VERSION:-latest}
     restart: unless-stopped
 
     environment:
-      # Coolify replaces this with the domain it assigns and routes that domain
-      # to port 8090 over HTTPS. Outside Coolify it is simply unset, and the
-      # server falls back to the request's own host.
-      - SERVICE_FQDN_LITEBASE_8090
-      - LITEBASE_BASE_URL=${SERVICE_FQDN_LITEBASE_8090:-}
-
       # Paths inside the image. Leave these alone.
-      - LITEBASE_DATA_DIR=/data
-      - LITEBASE_ADDR=0.0.0.0:8090
-      - LITEBASE_LOG_FORMAT=json
+      LITEBASE_DATA_DIR: /data
+      LITEBASE_ADDR: 0.0.0.0:8090
+      LITEBASE_LOG_FORMAT: json
 
-      # Optional. Leave unset and the server generates a strong password on
-      # first start and prints it to the deploy log, and generates an
-      # encryption key that it stores on the data volume.
-      - LITEBASE_ADMIN_EMAIL=${LITEBASE_ADMIN_EMAIL:-}
-      - LITEBASE_ADMIN_PASSWORD=${LITEBASE_ADMIN_PASSWORD:-}
-      - LITEBASE_BACKUP_ENCRYPTION_KEY=${LITEBASE_BACKUP_ENCRYPTION_KEY:-}
-
-    # The port is exposed to the proxy but deliberately not published to the
-    # host: publishing it would make the app reachable over plain HTTP on
-    # http://SERVER_IP:8090, bypassing the certificate the proxy terminates.
-    # Uncomment the mapping to reach it directly when testing locally.
+    # Published to the proxy but deliberately not mapped onto a host port:
+    # doing that would expose the app over plain HTTP on http://SERVER_IP:8090,
+    # bypassing the certificate the proxy terminates. Coolify routes its
+    # assigned domain to this port.
     expose:
       - "8090"
-    # ports:
-    #   - "${LITEBASE_PORT:-8090}:8090"
 
     volumes:
       # Databases, metadata and local backups. Coolify creates this volume
@@ -58,9 +46,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-
-    security_opt:
-      - no-new-privileges:true
 
 volumes:
   litebase-data:

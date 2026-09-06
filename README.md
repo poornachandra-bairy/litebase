@@ -279,20 +279,21 @@ and serves the dashboard and the API from one port.
 3. Set **Build Pack** to **`Docker Compose`**, with the compose file at
    `docker-compose.yml`. This matters: the Compose build pack creates the data
    volume for you, whereas the plain Dockerfile pack does not.
-4. Under **Domains**, click **Generate Domain**.
-5. **Deploy.**
+4. **Deploy.** The first build takes a few minutes, as it compiles both the
+   dashboard and the server.
+5. Under **Domains**, click **Generate Domain**, confirm the port is `8090`,
+   and redeploy. Coolify issues the certificate.
 6. Open **Logs** and copy the generated password from the boxed banner.
-7. Visit the domain, sign in, and change the password in the sidebar.
+7. Visit the domain, sign in, and change the password from the sidebar.
 
-That is the whole procedure. There is nothing to set under *Environment
-Variables* and nothing to add under *Storages*.
+Nothing needs adding under *Environment Variables* or *Storages*.
 
 #### Why no configuration is needed
 
 | Concern | How it is handled |
 |---|---|
 | HTTPS | Coolify's proxy terminates TLS and issues the certificate. Litebase marks its cookies `Secure` automatically once requests arrive over HTTPS |
-| URL | Coolify assigns the domain and routes it to port 8090, which the compose file declares |
+| URL | Coolify routes the domain to port 8090, which the compose file exposes. The API documentation takes its base URL from the request, so it follows whatever domain you use |
 | Admin account | A strong password is generated on first start and printed once to the deploy log |
 | Encryption key | Generated on first start and stored on the data volume, so backup encryption works immediately and keeps working across redeploys |
 | Persistence | The compose file declares the `/data` volume, which Coolify creates |
@@ -308,6 +309,17 @@ Set any of these under *Environment Variables* only if you want them:
 | `LITEBASE_BACKUP_ENCRYPTION_KEY` | Manage the key yourself rather than letting the instance generate one |
 | `LITEBASE_MAX_UPLOAD_BYTES` | Raise the import limit. Coolify's proxy has its own body limit, so raise that too |
 
+#### If a deploy fails
+
+- **`non-string key in services.litebase.environment: 0`** — the compose file's
+  `environment:` section is written as a list. Coolify rewrites that section to
+  merge in variables from its UI, and a list comes back with integer keys.
+  Write it as a mapping (`KEY: value`) instead, which is what this repository
+  does.
+- **Certificate will not issue** — Coolify's generated domain is an `sslip.io`
+  address, and Let's Encrypt rate-limits that domain. Point a domain of your
+  own at the server and use that instead.
+
 #### Things worth knowing
 
 - **Keep the volume.** Deleting it destroys your databases *and* the generated
@@ -317,9 +329,6 @@ Set any of these under *Environment Variables* only if you want them:
   metadata database migrates itself forward on startup.
 - **Lost the password?** Open a terminal on the container and run
   `litebase --reset-password admin@litebase.local`.
-- **Auto-generated domains.** Coolify's generated domain is an `sslip.io`
-  address. Let's Encrypt rate-limits that domain, so if certificate issuance
-  fails, point a domain of your own at the server and use it instead.
 
 ### Reverse proxy (without Coolify)
 
